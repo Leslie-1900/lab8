@@ -10,13 +10,37 @@ jobs:
     steps:
       - name: check out the code to build server
         uses: actions/checkout@v3    
+
+      # 新增：在拷贝前临时让 ubuntu 用户拥有 /var/www/html 的写入权限（Ubuntu 24+ 需要）
+      - name: Set ubuntu as owner of /var/www/html (for Ubuntu 24+)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.SSH_USER_NAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            sudo chown -R ubuntu /var/www/html
+
+      # 原有的文件拷贝步骤
       - name: copy file to server
         uses: appleboy/scp-action@master
         with:
-          host: ${{secrets.PROD_HOST}}
-          username: ${{secrets.SSH_USER_NAME}}
-          port: ${{secrets.SSH_PORT}}
-          key: ${{secrets.SSH_KEY}}
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.SSH_USER_NAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_KEY }}
           source: "./html/*"
           target: "/var/www/html"
           strip_components: 1
+
+      # 新增：拷贝完成后恢复 /var/www/html 的所有者为 root（安全措施）
+      - name: Restore root as owner of /var/www/html (for Ubuntu 24+)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.SSH_USER_NAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            sudo chown -R root /var/www/html
